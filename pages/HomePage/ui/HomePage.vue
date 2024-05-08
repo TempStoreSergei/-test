@@ -1,73 +1,133 @@
 <template>
-	<div class="wrapper">
-		<div class="container">
-      <h1 class="title">
-        Hello from  <a class="link" target="_blank" href="https://github.com/yunglocokid">@yunglocokid</a>
-      </h1>
-      <button class="button" @click="increment">Count is: {{count}}</button>
-		</div>
-	</div>
+  <div class="wrapper">
+    <div class="container">
+      <h1>Города Российской Федерации</h1>
+      <RadioGroup v-model:value="searchType" class="radio-group">
+        <Radio value="city">По названию города</Radio>
+        <Radio value="region">По названию региона</Radio>
+      </RadioGroup>
+      <InputSearch v-model:value="searchValue" placeholder="Поиск" class="search-input" />
+      <Tree
+          :expanded-keys="expandedKeys"
+          :auto-expand-parent="autoExpandParent"
+          :tree-data="filteredData"
+          @expand="onExpand"
+          :height="400"
+          class="custom-tree"
+      >
+        <template #switcherIcon="{ switcherCls }">
+          <DownOutlined :class="switcherCls" />
+        </template>
+        <template #title="{ title }">
+          <span v-html="highlightSearch(title)" class="tree-title"></span>
+        </template>
+      </Tree>
+    </div>
+  </div>
 </template>
 
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { Radio, InputSearch, Tree, RadioGroup } from "ant-design-vue";
+import { DownOutlined } from "@ant-design/icons-vue";
+import { data } from './../mocks/data';
+
+const searchType = ref('city');
+const searchValue = ref('');
+const expandedKeys = ref([]);
+const autoExpandParent = ref(true);
+const gData = ref(data.sort((a, b) => a.title.localeCompare(b.title)));
+
+const highlightSearch = (title) => {
+  if (!searchValue.value) return title;
+  const index = title.toLowerCase().indexOf(searchValue.value.toLowerCase());
+  if (index === -1) return title;
+  const start = title.substring(0, index);
+  const matched = title.substring(index, index + searchValue.value.length);
+  const end = title.substring(index + searchValue.value.length);
+  return `${start}<span class="highlight">${matched}</span>${end}`;
+};
+
+const onExpand = (keys) => {
+  expandedKeys.value = keys;
+  autoExpandParent.value = true;
+};
+
+const filteredData = computed(() => {
+  const filtered = {};
+  gData.value.forEach(item => {
+    if (searchType.value === 'city') {
+      if (item.children) {
+        item.children.forEach(city => {
+          if (city.title.toLowerCase().includes(searchValue.value.toLowerCase())) {
+            const firstLetter = city.title.charAt(0).toUpperCase();
+            if (!filtered[firstLetter]) {
+              filtered[firstLetter] = { title: firstLetter, key: firstLetter, children: [] };
+            }
+            filtered[firstLetter].children.push(city);
+            if (searchValue.value !== '') {
+              expandedKeys.value.push(city.key); // Add the key to expandedKeys when searchValue is not empty
+            }
+          }
+        });
+      }
+    } else if (searchType.value === 'region') {
+      if (item.title.toLowerCase().includes(searchValue.value.toLowerCase())) {
+        filtered[item.key] = item;
+        if (searchValue.value !== '') {
+          expandedKeys.value.push(item.key); // Add the key to expandedKeys when searchValue is not empty
+        }
+      }
+    }
+  });
+  return Object.values(filtered);
+});
+
+
+
+watch(searchType, (newValue, oldValue) => {
+  searchValue.value = '';
+});
+
+</script>
+
 <style>
-body {
-  cursor: url("https://vsthemes.org/uploads/cursors/24897/ec9c27ec4afcbc9e321f3114ee514696.webp"),auto;
-}
-@keyframes cursor-blink {
-  0% {
-    opacity: 0;
-  }
-}
-.container{
-  color: aliceblue;
-  box-sizing: border-box;
-  flex-flow: column wrap;
+.wrapper {
+  font-family: "Dubai Medium", sans-serif;
   display: flex;
-  gap: 4px;
   justify-content: center;
   align-items: center;
   height: 100vh;
-}
-.link{
-  background: linear-gradient(45deg, #9c20aa 33%, #fb3570);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: #0B2349;
-}
-.link::after{
-  content: "";
-  width: 5px;
-  height: 25px;
-  background: #ec7fff;
-  display: inline-block;
-  animation: cursor-blink 1.5s steps(2) infinite;
-}
-.title a {
-  text-decoration: none;
-  color: blueviolet;
-}
-.wrapper{
-  background: black;
-  font-family: "Dubai Medium";
+  background-color: #f0f2f5;
 }
 
-.button{
-  cursor: pointer;
-  background:
-      linear-gradient(#000 0 0) padding-box, /*this is your grey background*/
-      linear-gradient(to right, #9c20aa, #fb3570) border-box;
-  color: aliceblue;
-  padding: 10px;
-  border: 5px solid transparent;
-  border-radius: 15px;
-  display: inline-block;
+
+.container {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.radio-group {
+  margin-bottom: 16px;
+}
+
+.search-input {
+  margin-bottom: 16px;
+}
+
+.custom-tree {
+  width: 100%;
+}
+
+.tree-title {
+  padding: 4px 8px;
+}
+
+.highlight {
+  color: blue;
 }
 </style>
-
-<script setup lang="ts">
-const count = ref(1)
-
-const increment = () => {
-  count.value += 1
-}
-</script>
